@@ -6,7 +6,7 @@ using System;
 
 public sealed class Demo : MonoBehaviour
 {
-    [SerializeField] private SoundRegistory soundRegistory;
+    [SerializeField] private SoundRegistry SoundRegistry;
 
     private SoundManager soundService;
     private IBgmHandle currentBgm;
@@ -72,7 +72,7 @@ public sealed class Demo : MonoBehaviour
 
     private void Start()
     {
-        soundService = new SoundManager(soundRegistory);
+        soundService = new SoundManager(SoundRegistry);
     }
 
     private void Update()

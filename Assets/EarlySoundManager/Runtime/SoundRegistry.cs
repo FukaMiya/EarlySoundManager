@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace Early.SoundManager
 {
-    [CreateAssetMenu(fileName = "SoundRegistory", menuName = "SoundManager/SoundRegistory")]
-    public sealed class SoundRegistory : ScriptableObject
+    [CreateAssetMenu(fileName = "SoundRegistry", menuName = "SoundManager/SoundRegistry")]
+    public sealed class SoundRegistry : ScriptableObject
     {
         public SoundEntry[] SoundEntries;
     }

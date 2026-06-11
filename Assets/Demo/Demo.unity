@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ad76b52d12dc444b9d0f31677d1ecd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Demo
-  soundRegistory: {fileID: 11400000, guid: 0e2bb78393ba641c39f0464562d5cb96, type: 2}
+  SoundRegistry: {fileID: 11400000, guid: 0e2bb78393ba641c39f0464562d5cb96, type: 2}
 --- !u!4 &311864823
 Transform:
   m_ObjectHideFlags: 0
