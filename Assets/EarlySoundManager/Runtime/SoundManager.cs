@@ -18,7 +18,7 @@ namespace Early.SoundManager
         private readonly Dictionary<BgmTrackId, BgmTrackState> bgmTracks = new ();
 
         public SoundManager() : this(null) { }
-        public SoundManager(SoundRegistory soundRegistory)
+        public SoundManager(SoundRegistry SoundRegistry)
         {
             this.availableAudioSources = new ObjectPool<AudioSource>
             (
@@ -31,7 +31,7 @@ namespace Early.SoundManager
                 maxSize: defaultPoolMaxSize
             );
 
-            SetupSoundRegistory(soundRegistory);
+            SetupSoundRegistry(SoundRegistry);
         }
 
         public void Tick()
@@ -431,19 +431,19 @@ namespace Early.SoundManager
             }
         }
 
-        private void SetupSoundRegistory(SoundRegistory soundRegistory)
+        private void SetupSoundRegistry(SoundRegistry SoundRegistry)
         {
-            if (soundRegistory == null)
+            if (SoundRegistry == null)
             {
                 return;
             }
-            if (soundRegistory.SoundEntries.Length == 0)
+            if (SoundRegistry.SoundEntries.Length == 0)
             {
                 Debug.LogWarning("Sound registory is empty.");
                 return;
             }
 
-            foreach (var entry in soundRegistory.SoundEntries)
+            foreach (var entry in SoundRegistry.SoundEntries)
             {
                 if (!audioClipCache.ContainsKey(entry.key))
                 {
