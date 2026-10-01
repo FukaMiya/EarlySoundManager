@@ -38,12 +38,12 @@ https://github.com/FukaMiya/EarlySoundManager.git?path=Assets/EarlySoundManager
 `Tick()` をプレイヤーループに組み込む必要があります。VContainer を導入している場合、`VContainer.Unity.ITickable` と互換性があります。
 
 ```csharp
-public SoundRegistory soundRegistory;
+public SoundRegistry soundRegistry;
 private SoundManager soundManager;
 
 void Start()
 {
-    soundManager = new SoundManager(soundRegistory);
+    soundManager = new SoundManager(soundRegistry);
 }
 
 void Update()
@@ -52,7 +52,7 @@ void Update()
 }
 ```
 
-`SoundRegistory` を使用しない場合は引数なしで初期化できます。
+`SoundRegistry` を使用しない場合は引数なしで初期化できます。
 
 ```csharp
 soundManager = new SoundManager();
@@ -241,10 +241,10 @@ soundManager.PlayBgm("key", myTrack);
 
 ---
 
-### Sound Registory
+### Sound Registry
 
 `ScriptableObject` でオーディオクリップを文字列キーで管理します。
-`Assets > Create > SoundManager > SoundRegistory` からアセットを作成し、`key` と `AudioClip` のペアを登録してください。
+`Assets > Create > SoundManager > SoundRegistry` からアセットを作成し、`key` と `AudioClip` のペアを登録してください。
 
 ---
 

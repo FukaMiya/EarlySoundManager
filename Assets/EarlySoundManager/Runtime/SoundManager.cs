@@ -60,7 +60,7 @@ namespace Early.SoundManager
             var handle = PlaySeInternal(GetAvailableAudioSource(), clip, options);
             handle.OnCompleted += () =>
             {
-                availableAudioSources.Release(handle.Release());
+                ReleaseToPool(handle.Release());
                 activeSeHandles.Remove(handle);
             };
             activeSeHandles.Add(handle);
@@ -129,7 +129,7 @@ namespace Early.SoundManager
             trackId = ResolveTrackId(trackId);
             if (bgmTracks.TryGetValue(trackId, out var trackState) && trackState.Current != null && trackState.Current.IsValid)
             {
-                availableAudioSources.Release(trackState.Current.Release());
+                ReleaseToPool(trackState.Current.Release());
                 trackState.Current = null;
             }
 
@@ -149,14 +149,11 @@ namespace Early.SoundManager
                 return PlayBgm(clip, options, trackId);
             }
 
-            if (fadingTimers.TryGetValue(trackState.Current, out var _))
+            if (trackState.Next != null)
             {
                 fadingTimers.Remove(trackState.Current);
-                if (trackState.Next != null)
-                {
-                    fadingTimers.Remove(trackState.Next);
-                }
-                availableAudioSources.Release(trackState.Current.Release());
+                fadingTimers.Remove(trackState.Next);
+                ReleaseToPool(trackState.Current.Release());
                 trackState.Current = trackState.Next;
                 trackState.Next = null;
             }
@@ -247,11 +244,11 @@ namespace Early.SoundManager
             {
                 if (trackState.Current != null && trackState.Current.IsValid)
                 {
-                    availableAudioSources.Release(trackState.Current.Release());
+                    ReleaseToPool(trackState.Current.Release());
                 }
                 if (trackState.Next != null && trackState.Next.IsValid)
                 {
-                    availableAudioSources.Release(trackState.Next.Release());
+                    ReleaseToPool(trackState.Next.Release());
                 }
             }
             audioClipCache.Clear();
@@ -259,7 +256,7 @@ namespace Early.SoundManager
             soundPositionSources.Clear();
             foreach (var handle in activeSeHandles)
             {
-                handle.Dispose();
+                ReleaseToPool(handle.Release());
             }
             activeSeHandles.Clear();
             availableAudioSources.Clear();
@@ -269,19 +266,13 @@ namespace Early.SoundManager
 #region Private Helper Methods
         private bool TryGetAudioClipByKey(string key, out AudioClip clip)
         {
-            if (audioClipCache.Count == 0)
-            {
-                clip = null;
-                return false;
-            }
-
             if (audioClipCache.TryGetValue(key, out clip))
             {
                 return true;
             }
             else
             {
-                Debug.LogWarning($"Sound with key '{key}' not found in registory.");
+                Debug.LogWarning($"Sound with key '{key}' not found in registry.");
                 clip = null;
                 return false;
             }
@@ -344,9 +335,9 @@ namespace Early.SoundManager
                 0,
                 () =>
                 {
-                    if (trackState.Current != null)
+                    if (trackState.Current != null && trackState.Current.IsValid)
                     {
-                        availableAudioSources.Release(trackState.Current.Release());
+                        ReleaseToPool(trackState.Current.Release());
                     }
                     trackState.Current = trackState.Next;
                     trackState.Next = null;
@@ -439,7 +430,7 @@ namespace Early.SoundManager
             }
             if (SoundRegistry.SoundEntries.Length == 0)
             {
-                Debug.LogWarning("Sound registory is empty.");
+                Debug.LogWarning("Sound registry is empty.");
                 return;
             }
 
@@ -451,7 +442,7 @@ namespace Early.SoundManager
                 }
                 else
                 {
-                    Debug.LogWarning($"Duplicate key '{entry.key}' found in sound registory. Skipping.");
+                    Debug.LogWarning($"Duplicate key '{entry.key}' found in sound registry. Skipping.");
                 }
             }
         }
@@ -468,6 +459,13 @@ namespace Early.SoundManager
         private void OnGetFromPool(AudioSource audioSource)
         {
             audioSource.gameObject.SetActive(true);
+        }
+
+        private void ReleaseToPool(AudioSource audioSource)
+        {
+            if (audioSource == null) return;
+
+            availableAudioSources.Release(audioSource);
         }
 
         private void OnReleaseToPool(AudioSource audioSource)

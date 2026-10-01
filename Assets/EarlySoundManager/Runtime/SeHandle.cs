@@ -7,6 +7,7 @@ namespace Early.SoundManager
         private readonly AudioSource audioSource;
         private readonly ISoundService soundService;
         private float previousBaseVolume = 1f;
+        private bool isValid;
 
         public SeHandle()
         {
@@ -18,18 +19,19 @@ namespace Early.SoundManager
             this.soundService = soundService;
             soundService.OnMasterVolumeChanged += ApplyVolume;
             soundService.OnSeVolumeChanged += ApplyVolume;
-            IsValid = true;
+            isValid = true;
         }
 
 #region ISeHandle Implementation
-        public float Volume => audioSource != null ? audioSource.volume : 0f;
-        public float Pitch => audioSource != null ? audioSource.pitch : 0f;
+        public float Volume => IsValid ? audioSource.volume : 0f;
+        public float Pitch => IsValid ? audioSource.pitch : 0f;
         public float BaseVolume { get; private set; } = 1f;
         public float BasePitch { get; private set; } = 1f;
-        public float Time => audioSource != null ? audioSource.time : 0f;
-        public bool IsPlaying => audioSource != null && audioSource.isPlaying;
+        public float Time => IsValid ? audioSource.time : 0f;
+        public bool IsPlaying => IsValid && audioSource.isPlaying;
         public bool IsPaused { get; private set; } = false;
-        public bool IsValid { get; private set; } = false;
+        // Unity operator on purpose: the AudioSource can be destroyed externally.
+        public bool IsValid => isValid && audioSource != null;
         public event System.Action OnPaused;
         public event System.Action OnResumed;
         public event System.Action OnVolumeChanged;
@@ -38,16 +40,22 @@ namespace Early.SoundManager
 
         public void Stop()
         {
-            if (!IsValid) return;
+            // Guard on the field, not IsValid: a destroyed source must still raise OnCompleted.
+            if (!isValid) return;
 
-            audioSource.Stop();
+            if (audioSource != null) audioSource.Stop();
             IsPaused = false;
             OnCompleted?.Invoke();
         }
 
         public void Stop(SoundFadingOptions fadingOptions)
         {
-            if (!IsValid) return;
+            if (!isValid) return;
+            if (audioSource == null)
+            {
+                Stop();
+                return;
+            }
 
             soundService.SetFadingTimer(this, new SoundFadingStatus(
                 SoundFadingType.Volume,
@@ -157,7 +165,9 @@ namespace Early.SoundManager
                 audioSource.Stop();
                 audioSource.clip = null;
             }
-            IsValid = false;
+            isValid = false;
+            if (soundService == null) return;
+
             soundService.OnMasterVolumeChanged -= ApplyVolume;
             soundService.OnSeVolumeChanged -= ApplyVolume;
         }
@@ -188,12 +198,16 @@ namespace Early.SoundManager
 #region Private Helper Methods
         private void ApplyVolume()
         {
+            if (!IsValid) return;
+
             audioSource.volume = BaseVolume * soundService.SeVolume * soundService.MasterVolume;
             OnVolumeChanged?.Invoke();
         }
 
         private void ApplyPitch()
         {
+            if (!IsValid) return;
+
             audioSource.pitch = BasePitch;
             OnPitchChanged?.Invoke();
         }
