@@ -36,6 +36,36 @@ namespace Early.SoundManager
         public event System.Action OnResumed;
         public event System.Action OnVolumeChanged;
         public event System.Action OnPitchChanged;
+        internal event System.Action OnStopped;
+
+        public void Stop()
+        {
+            // Guard on the field, not IsValid: a destroyed source must still raise OnStopped.
+            if (!isValid) return;
+
+            if (audioSource != null) audioSource.Stop();
+            IsPaused = false;
+            OnStopped?.Invoke();
+        }
+
+        public void Stop(SoundFadingOptions fadingOptions)
+        {
+            if (!isValid) return;
+            if (audioSource == null)
+            {
+                Stop();
+                return;
+            }
+
+            soundService.SetFadingTimer(this, new SoundFadingStatus(
+                SoundFadingType.Volume,
+                fadingOptions.FadeDuration,
+                BaseVolume,
+                0,
+                fadingOptions.UseScaledTime,
+                () => Stop()
+            ));
+        }
 
         public void Pause()
         {
@@ -56,6 +86,7 @@ namespace Early.SoundManager
                 fadingOptions.FadeDuration,
                 BaseVolume,
                 0,
+                fadingOptions.UseScaledTime,
                 () => Pause()
             ));
         }
@@ -79,7 +110,8 @@ namespace Early.SoundManager
                 SoundFadingType.Volume,
                 fadingOptions.FadeDuration,
                 0,
-                previousBaseVolume
+                previousBaseVolume,
+                fadingOptions.UseScaledTime
             ));
         }
 
@@ -99,7 +131,8 @@ namespace Early.SoundManager
                 SoundFadingType.Volume,
                 fadingOptions.FadeDuration,
                 BaseVolume,
-                volume
+                volume,
+                fadingOptions.UseScaledTime
             ));
         }
 
@@ -119,8 +152,15 @@ namespace Early.SoundManager
                 SoundFadingType.Pitch,
                 fadingOptions.FadeDuration,
                 BasePitch,
-                pitch
+                pitch,
+                fadingOptions.UseScaledTime
             ));
+        }
+
+        public ISoundHandle SetLink(GameObject target)
+        {
+            if (IsValid) soundService.SetLink(this, target);
+            return this;
         }
 
         AudioSource ISoundHandle.Release()

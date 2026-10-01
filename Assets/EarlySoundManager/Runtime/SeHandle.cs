@@ -62,6 +62,7 @@ namespace Early.SoundManager
                 fadingOptions.FadeDuration,
                 BaseVolume,
                 0,
+                fadingOptions.UseScaledTime,
                 () => Stop()
             ));
         }
@@ -85,6 +86,7 @@ namespace Early.SoundManager
                 fadingOptions.FadeDuration,
                 BaseVolume,
                 0,
+                fadingOptions.UseScaledTime,
                 () => Pause()
             ));
         }
@@ -108,7 +110,8 @@ namespace Early.SoundManager
                 SoundFadingType.Volume,
                 fadingOptions.FadeDuration,
                 0,
-                previousBaseVolume
+                previousBaseVolume,
+                fadingOptions.UseScaledTime
             ));
         }
 
@@ -128,7 +131,8 @@ namespace Early.SoundManager
                 SoundFadingType.Volume,
                 fadingOptions.FadeDuration,
                 BaseVolume,
-                volume
+                volume,
+                fadingOptions.UseScaledTime
             ));
         }
 
@@ -148,8 +152,15 @@ namespace Early.SoundManager
                 SoundFadingType.Pitch,
                 fadingOptions.FadeDuration,
                 BasePitch,
-                pitch
+                pitch,
+                fadingOptions.UseScaledTime
             ));
+        }
+
+        public ISoundHandle SetLink(GameObject target)
+        {
+            if (IsValid) soundService.SetLink(this, target);
+            return this;
         }
 
         AudioSource ISoundHandle.Release()

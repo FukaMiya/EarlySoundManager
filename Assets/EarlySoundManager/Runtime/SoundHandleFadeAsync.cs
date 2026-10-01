@@ -19,7 +19,7 @@ namespace Early.SoundManager
     {
         #region Public API
 
-        public static AsyncResult StopAsync(this ISeHandle handle, SoundFadingOptions fadingOptions, CancellationToken cancellationToken = default)
+        public static AsyncResult StopAsync(this ISoundHandle handle, SoundFadingOptions fadingOptions, CancellationToken cancellationToken = default)
             => HandleAsyncOperation(handle, fadingOptions, cancellationToken, h => h.IsPlaying, h => h.Stop(), h => h.Stop(fadingOptions));
 
         public static AsyncResult PauseAsync(this ISoundHandle handle, SoundFadingOptions fadingOptions, CancellationToken cancellationToken = default)

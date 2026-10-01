@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace Early.SoundManager
 {
@@ -6,6 +7,8 @@ namespace Early.SoundManager
     public sealed class SoundRegistry : ScriptableObject
     {
         public SoundEntry[] SoundEntries;
+        public AudioMixerGroup DefaultSeMixerGroup;
+        public AudioMixerGroup DefaultBgmMixerGroup;
     }
 
     [System.Serializable]

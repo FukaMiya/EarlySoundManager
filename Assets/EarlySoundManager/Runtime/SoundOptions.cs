@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace Early.SoundManager
 {
@@ -12,6 +13,7 @@ namespace Early.SoundManager
         AudioRolloffMode RolloffMode { get; }
         float MinDistance { get; }
         float MaxDistance { get; }
+        AudioMixerGroup MixerGroup { get; }
     }
 
     public readonly struct SoundOptions : ISoundOptions
@@ -24,6 +26,7 @@ namespace Early.SoundManager
         public readonly AudioRolloffMode RolloffMode { get; }
         public readonly float MinDistance { get; }
         public readonly float MaxDistance { get; }
+        public readonly AudioMixerGroup MixerGroup { get; }
 
         public SoundOptions(
             float volume = 1.0f,
@@ -33,7 +36,8 @@ namespace Early.SoundManager
             Transform positionSource = null,
             AudioRolloffMode rolloffMode = AudioRolloffMode.Logarithmic,
             float minDistance = 1.0f,
-            float maxDistance = 500.0f
+            float maxDistance = 500.0f,
+            AudioMixerGroup mixerGroup = null
         )
         {
             BaseVolume = volume;
@@ -44,6 +48,7 @@ namespace Early.SoundManager
             RolloffMode = rolloffMode;
             MinDistance = minDistance;
             MaxDistance = maxDistance;
+            MixerGroup = mixerGroup;
         }
 
         public static SoundOptions Default => new (
@@ -54,7 +59,8 @@ namespace Early.SoundManager
             positionSource: null,
             rolloffMode: AudioRolloffMode.Logarithmic,
             minDistance: 1.0f,
-            maxDistance: 500.0f
+            maxDistance: 500.0f,
+            mixerGroup: null
         );
 
         public static implicit operator SerializableSoundOptions(SoundOptions options)
@@ -68,7 +74,8 @@ namespace Early.SoundManager
                 PositionSource = options.PositionSource,
                 RolloffMode = options.RolloffMode,
                 MinDistance = options.MinDistance,
-                MaxDistance = options.MaxDistance
+                MaxDistance = options.MaxDistance,
+                MixerGroup = options.MixerGroup
             };
         }
     }
@@ -84,6 +91,7 @@ namespace Early.SoundManager
         [SerializeField] private AudioRolloffMode rolloffMode;
         [SerializeField] private float minDistance;
         [SerializeField] private float maxDistance;
+        [SerializeField] private AudioMixerGroup mixerGroup;
 
         public float BaseVolume { readonly get => baseVolume; set => baseVolume = value; }
         public float BasePitch { readonly get => basePitch; set => basePitch = value; }
@@ -93,6 +101,7 @@ namespace Early.SoundManager
         public AudioRolloffMode RolloffMode { readonly get => rolloffMode; set => rolloffMode = value; }
         public float MinDistance { readonly get => minDistance; set => minDistance = value; }
         public float MaxDistance { readonly get => maxDistance; set => maxDistance = value; }
+        public AudioMixerGroup MixerGroup { readonly get => mixerGroup; set => mixerGroup = value; }
 
         public static implicit operator SoundOptions(SerializableSoundOptions options)
         {
@@ -104,7 +113,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
     }
@@ -121,7 +131,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -135,7 +146,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -149,7 +161,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -163,7 +176,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -177,7 +191,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -191,7 +206,8 @@ namespace Early.SoundManager
                 positionSource: positionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -205,7 +221,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: rolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -219,7 +236,8 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: minDistance,
-                maxDistance: options.MaxDistance
+                maxDistance: options.MaxDistance,
+                mixerGroup: options.MixerGroup
             );
         }
 
@@ -233,7 +251,23 @@ namespace Early.SoundManager
                 positionSource: options.PositionSource,
                 rolloffMode: options.RolloffMode,
                 minDistance: options.MinDistance,
-                maxDistance: maxDistance
+                maxDistance: maxDistance,
+                mixerGroup: options.MixerGroup
+            );
+        }
+
+        public static SoundOptions WithMixerGroup<T>(this T options, AudioMixerGroup mixerGroup) where T : ISoundOptions
+        {
+            return new SoundOptions(
+                volume: options.BaseVolume,
+                pitch: options.BasePitch,
+                spatialize: options.Spatialize,
+                position: options.Position,
+                positionSource: options.PositionSource,
+                rolloffMode: options.RolloffMode,
+                minDistance: options.MinDistance,
+                maxDistance: options.MaxDistance,
+                mixerGroup: mixerGroup
             );
         }
     }

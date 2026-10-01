@@ -116,9 +116,27 @@ handle.Pause();
 handle.Pause(new SoundFadingOptions(fadeDuration: 0.5f));
 handle.Resume();
 handle.Resume(new SoundFadingOptions(fadeDuration: 0.5f));
+
+// 停止（AudioSource はプールに戻り、ハンドルは無効になります）
+handle.Stop();
+handle.Stop(new SoundFadingOptions(fadeDuration: 1.0f));
+
+// トラック単位で停止（クロスフェード中は両方の音が停止します）
+soundManager.StopBgm();
+soundManager.StopBgm(BgmTrackId.Ambient);
+soundManager.StopBgm(new SoundFadingOptions(fadeDuration: 1.0f), BgmTrackId.Ambient);
 ```
 
-> BGM を完全に停止させることはできません。一時停止するか、別の BGM に切り替えてください。
+`Stop()` は終了、`Pause()` は一時停止です。停止したトラックは、次に `PlayBgm` を呼ぶと最初から再生されます。
+
+#### GameObject に紐づけて自動停止
+
+`SetLink` で GameObject を紐づけると、その GameObject が破棄されたときに次の `Tick` でハンドルが `Stop()` されます。SE・BGM のどちらでも使えます。`SetLink(null)` を渡すと紐づけが解除されます（停止はされません）。
+
+```csharp
+soundManager.PlaySe("key").SetLink(gameObject);
+soundManager.PlayBgm("key").SetLink(gameObject);
+```
 
 ---
 
@@ -185,6 +203,7 @@ soundManager.SetBgmVolume(0.7f);
 | `RolloffMode` | `AudioRolloffMode` | `Logarithmic` | 減衰モード |
 | `MinDistance` | `float` | `1.0` | 最小距離 |
 | `MaxDistance` | `float` | `500.0` | 最大距離 |
+| `MixerGroup` | `AudioMixerGroup` | `null` | 出力先の AudioMixerGroup（`null` の場合はカテゴリ既定値） |
 
 拡張メソッドによる流暢な記述が可能です。
 
@@ -197,7 +216,8 @@ var options = SoundOptions.Default
     .WithPositionSource(transform)
     .WithRolloffMode(AudioRolloffMode.Linear)
     .WithMinDistance(2.0f)
-    .WithMaxDistance(100.0f);
+    .WithMaxDistance(100.0f)
+    .WithMixerGroup(mixerGroup);
 ```
 
 Inspector でシリアライズする場合は `SerializableSoundOptions` を使用してください。`SoundOptions` との暗黙的な型変換に対応しています。
@@ -212,6 +232,7 @@ Inspector でシリアライズする場合は `SerializableSoundOptions` を使
 |---|---|---|---|
 | `FadeDuration` | `float` | — | フェードにかける時間（秒） |
 | `CancelBehaviour` | `CancelBehaviour` | `Cancel` | キャンセル時の挙動 |
+| `UseScaledTime` | `bool` | `false` | `true` の場合は `Time.timeScale` の影響を受ける（既定では受けない） |
 
 `CancelBehaviour` の値:
 
@@ -245,6 +266,8 @@ soundManager.PlayBgm("key", myTrack);
 
 `ScriptableObject` でオーディオクリップを文字列キーで管理します。
 `Assets > Create > SoundManager > SoundRegistry` からアセットを作成し、`key` と `AudioClip` のペアを登録してください。
+
+`DefaultSeMixerGroup` / `DefaultBgmMixerGroup` を設定すると、`MixerGroup` を指定しない SE / BGM の出力先として使われます。Registry を使わない場合は `SoundManager` の同名プロパティで設定できます。
 
 ---
 

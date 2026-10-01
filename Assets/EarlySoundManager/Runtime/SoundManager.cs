@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Pool;
 
 namespace Early.SoundManager
@@ -14,8 +15,12 @@ namespace Early.SoundManager
         private readonly Dictionary<string, AudioClip> audioClipCache = new ();
         private readonly Dictionary<ISoundHandle, SoundFadingStatus> fadingTimers = new ();
         private readonly Dictionary<ISoundHandle, Transform> soundPositionSources = new ();
+        private readonly Dictionary<ISoundHandle, GameObject> links = new ();
         private readonly List<ISoundHandle> handlesToRemove = new ();
         private readonly Dictionary<BgmTrackId, BgmTrackState> bgmTracks = new ();
+
+        public AudioMixerGroup DefaultSeMixerGroup { get; set; }
+        public AudioMixerGroup DefaultBgmMixerGroup { get; set; }
 
         public SoundManager() : this(null) { }
         public SoundManager(SoundRegistry SoundRegistry)
@@ -36,6 +41,7 @@ namespace Early.SoundManager
 
         public void Tick()
         {
+            CheckLinks();
             CheckSeCompletion();
             FadeHandles();
             MoveSoundPositions();
@@ -129,8 +135,7 @@ namespace Early.SoundManager
             trackId = ResolveTrackId(trackId);
             if (bgmTracks.TryGetValue(trackId, out var trackState) && trackState.Current != null && trackState.Current.IsValid)
             {
-                ReleaseToPool(trackState.Current.Release());
-                trackState.Current = null;
+                StopBgm(trackId);
             }
 
             return PlayBgm(clip, options, trackId);
@@ -158,7 +163,7 @@ namespace Early.SoundManager
                 trackState.Next = null;
             }
 
-            return SwitchBgmInternal(GetAvailableAudioSource(), clip, options, fadingOptions, trackState);
+            return SwitchBgmInternal(GetAvailableAudioSource(), clip, options, fadingOptions, trackState, trackId);
         }
 
         public IBgmHandle SwitchBgm(string key, BgmTrackId trackId = default)
@@ -195,6 +200,24 @@ namespace Early.SoundManager
             }
         }
 
+        public void StopBgm(BgmTrackId trackId = default)
+        {
+            if (!bgmTracks.TryGetValue(ResolveTrackId(trackId), out var trackState)) return;
+
+            var current = trackState.Current;
+            var next = trackState.Next;
+            current?.Stop();
+            next?.Stop();
+        }
+
+        public void StopBgm(SoundFadingOptions fadingOptions, BgmTrackId trackId = default)
+        {
+            if (!bgmTracks.TryGetValue(ResolveTrackId(trackId), out var trackState)) return;
+
+            trackState.Current?.Stop(fadingOptions);
+            trackState.Next?.Stop(fadingOptions);
+        }
+
         public void SetMasterVolume(float volume)
         {
             MasterVolume = volume;
@@ -218,6 +241,21 @@ namespace Early.SoundManager
             if (handle != null && handle.IsValid)
             {
                 fadingTimers[handle] = fadingStatus;
+            }
+        }
+
+        void ISoundService.SetLink(ISoundHandle handle, GameObject target)
+        {
+            if (handle == null || !handle.IsValid) return;
+
+            // Unity operator on purpose: a destroyed target also unlinks.
+            if (target == null)
+            {
+                links.Remove(handle);
+            }
+            else
+            {
+                links[handle] = target;
             }
         }
 
@@ -254,6 +292,7 @@ namespace Early.SoundManager
             audioClipCache.Clear();
             fadingTimers.Clear();
             soundPositionSources.Clear();
+            links.Clear();
             foreach (var handle in activeSeHandles)
             {
                 ReleaseToPool(handle.Release());
@@ -283,7 +322,7 @@ namespace Early.SoundManager
             return availableAudioSources.Get();
         }
 
-        private AudioSource SetAudioSourceParams(ISoundHandle handle, AudioSource audioSource, SoundOptions options)
+        private AudioSource SetAudioSourceParams(ISoundHandle handle, AudioSource audioSource, SoundOptions options, AudioMixerGroup defaultMixerGroup)
         {
             handle.SetVolume(options.BaseVolume);
             handle.SetPitch(options.BasePitch);
@@ -292,6 +331,7 @@ namespace Early.SoundManager
             audioSource.minDistance = options.MinDistance;
             audioSource.maxDistance = options.MaxDistance;
             audioSource.transform.position = options.Position;
+            audioSource.outputAudioMixerGroup = options.MixerGroup != null ? options.MixerGroup : defaultMixerGroup;
             if (options.PositionSource != null)
             {
                 soundPositionSources[handle] = options.PositionSource;
@@ -309,7 +349,7 @@ namespace Early.SoundManager
             var handle = new SeHandle(audioSource, this);
             audioSource.loop = false;
             audioSource.clip = clip;
-            SetAudioSourceParams(handle, audioSource, options);
+            SetAudioSourceParams(handle, audioSource, options, DefaultSeMixerGroup);
             audioSource.Play();
             return handle;
         }
@@ -317,22 +357,26 @@ namespace Early.SoundManager
         private IBgmHandle PlayBgmInternal(AudioSource audioSource, AudioClip clip, SoundOptions options, BgmTrackId trackId)
         {
             var handle = new BgmHandle(audioSource, this);
+            handle.OnStopped += () => OnBgmStopped(handle, trackId);
             audioSource.loop = true;
             audioSource.clip = clip;
-            SetAudioSourceParams(handle, audioSource, options);
+            SetAudioSourceParams(handle, audioSource, options, DefaultBgmMixerGroup);
             audioSource.Play();
             return handle;
         }
 
-        private IBgmHandle SwitchBgmInternal(AudioSource audioSource, AudioClip clip, SoundOptions options, SoundFadingOptions fadingOptions, BgmTrackState trackState)
+        private IBgmHandle SwitchBgmInternal(AudioSource audioSource, AudioClip clip, SoundOptions options, SoundFadingOptions fadingOptions, BgmTrackState trackState, BgmTrackId trackId)
         {
-            trackState.Next = new BgmHandle(audioSource, this);
-            fadingTimers[trackState.Next] = new SoundFadingStatus(SoundFadingType.Volume, fadingOptions.FadeDuration, 0, options.BaseVolume, null);
+            var next = new BgmHandle(audioSource, this);
+            next.OnStopped += () => OnBgmStopped(next, trackId);
+            trackState.Next = next;
+            fadingTimers[trackState.Next] = new SoundFadingStatus(SoundFadingType.Volume, fadingOptions.FadeDuration, 0, options.BaseVolume, fadingOptions.UseScaledTime, null);
             fadingTimers[trackState.Current] = new SoundFadingStatus(
                 SoundFadingType.Volume,
                 fadingOptions.FadeDuration,
                 trackState.Current.BaseVolume,
                 0,
+                fadingOptions.UseScaledTime,
                 () =>
                 {
                     if (trackState.Current != null && trackState.Current.IsValid)
@@ -341,15 +385,63 @@ namespace Early.SoundManager
                     }
                     trackState.Current = trackState.Next;
                     trackState.Next = null;
+                    RemoveTrackIfEmpty(trackId, trackState);
                 }
             );
 
             audioSource.loop = true;
             audioSource.clip = clip;
-            SetAudioSourceParams(trackState.Next, audioSource, options);
+            SetAudioSourceParams(trackState.Next, audioSource, options, DefaultBgmMixerGroup);
             trackState.Next.SetVolume(0);
             audioSource.Play();
             return trackState.Next;
+        }
+
+        private void OnBgmStopped(BgmHandle handle, BgmTrackId trackId)
+        {
+            fadingTimers.Remove(handle);
+            soundPositionSources.Remove(handle);
+            links.Remove(handle);
+            ReleaseToPool(((ISoundHandle)handle).Release());
+
+            if (!bgmTracks.TryGetValue(trackId, out var trackState)) return;
+
+            if (trackState.Next == handle)
+            {
+                trackState.Next = null;
+            }
+            else if (trackState.Current == handle)
+            {
+                trackState.Current = trackState.Next;
+                trackState.Next = null;
+            }
+            RemoveTrackIfEmpty(trackId, trackState);
+        }
+
+        private void RemoveTrackIfEmpty(BgmTrackId trackId, BgmTrackState trackState)
+        {
+            if (trackState.Current == null && trackState.Next == null)
+            {
+                bgmTracks.Remove(trackId);
+            }
+        }
+
+        private void CheckLinks()
+        {
+            handlesToRemove.Clear();
+            foreach (var (handle, target) in links)
+            {
+                if (handle == null || !handle.IsValid || target == null)
+                {
+                    handlesToRemove.Add(handle);
+                }
+            }
+
+            foreach (var handle in handlesToRemove)
+            {
+                links.Remove(handle);
+                handle?.Stop();
+            }
         }
 
         private void CheckSeCompletion()
@@ -372,7 +464,10 @@ namespace Early.SoundManager
             {
                 if (fadingStatus.Duration <= 0) continue;
 
-                fadingStatus.Timer += Time.deltaTime;
+                var delta = fadingStatus.UseScaledTime ? Time.deltaTime : Time.unscaledDeltaTime;
+                if (delta <= 0f) continue;
+
+                fadingStatus.Timer += delta;
                 var t = Mathf.InverseLerp(0, fadingStatus.Duration, fadingStatus.Timer);
                 var newValue = Mathf.Lerp(fadingStatus.StartValue, fadingStatus.EndValue, t);
                 if (fadingStatus.FadingType == SoundFadingType.Volume)
@@ -428,6 +523,9 @@ namespace Early.SoundManager
             {
                 return;
             }
+
+            DefaultSeMixerGroup = SoundRegistry.DefaultSeMixerGroup;
+            DefaultBgmMixerGroup = SoundRegistry.DefaultBgmMixerGroup;
             if (SoundRegistry.SoundEntries.Length == 0)
             {
                 Debug.LogWarning("Sound registry is empty.");
@@ -474,6 +572,7 @@ namespace Early.SoundManager
 
             audioSource.Stop();
             audioSource.clip = null;
+            audioSource.outputAudioMixerGroup = null;
             audioSource.gameObject.SetActive(false);
         }
 

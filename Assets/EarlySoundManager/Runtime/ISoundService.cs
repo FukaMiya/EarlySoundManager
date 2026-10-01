@@ -29,7 +29,10 @@ namespace Early.SoundManager
         void SetMasterVolume(float volume);
         void SetSeVolume(float volume);
         void SetBgmVolume(float volume);
+        void StopBgm(BgmTrackId trackId = default);
+        void StopBgm(SoundFadingOptions fadingOptions, BgmTrackId trackId = default);
         internal void SetFadingTimer(ISoundHandle handle, SoundFadingStatus fadingStatus);
+        internal void SetLink(ISoundHandle handle, GameObject target);
         internal void ForceCompleteFading(ISoundHandle handle);
         internal bool IsFading(ISoundHandle handle);
     }
@@ -50,20 +53,21 @@ namespace Early.SoundManager
         event System.Action OnPitchChanged;
         void Pause();
         void Pause(SoundFadingOptions fadingOptions);
+        void Stop();
+        void Stop(SoundFadingOptions fadingOptions);
         void Resume();
         void Resume(SoundFadingOptions fadingOptions);
         void SetVolume(float volume);
         void SetVolume(float volume, SoundFadingOptions fadingOptions);
         void SetPitch(float pitch);
         void SetPitch(float pitch, SoundFadingOptions fadingOptions);
+        ISoundHandle SetLink(GameObject target);
         internal AudioSource Release();
     }
 
     public interface ISeHandle : ISoundHandle
     {
         event System.Action OnCompleted;
-        void Stop();
-        void Stop(SoundFadingOptions fadingOptions);
     }
 
     public interface IBgmHandle : ISoundHandle
